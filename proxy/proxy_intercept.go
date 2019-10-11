@@ -37,7 +37,7 @@ func (proxy *Proxy) Intercept(i interceptor, w http.ResponseWriter, r *http.Requ
 	defer client.Close()
 
 	resp, err := client.Do(r)
-	if err != nil && err != httputil.ErrPersistEOF {
+	if err != nil {
 		http.Error(w, fmt.Sprintf("Could not make request to target: %v", err), http.StatusInternalServerError)
 		Log.Warning("Error forwarding request: ", err)
 		return
