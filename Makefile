@@ -17,8 +17,8 @@ QEMU_VERSION=v2.7.0
 
 # A list of all supported architectures here. Should be named as Go is naming platforms
 # All supported architectures must have an "ifeq" block below that customizes the parameters
-ALL_ARCHITECTURES=amd64 arm arm64 ppc64le s390x
-ML_PLATFORMS=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/s390x
+ALL_ARCHITECTURES=amd64
+ML_PLATFORMS=linux/amd64
 
 ifeq ($(ARCH),amd64)
 # The architecture to use when downloading the docker binary
