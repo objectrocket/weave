@@ -15,7 +15,7 @@ jobs:
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker info
-      - run: make UPDATE_LATEST=false COVERAGE=false DOCKERHUB_USER=objectrocket WEAVE_VERSION=${CIRCLE_TAG} BUILD_IN_CONTAINER=false PUBLISH_WEAVEDB=false SUDO= exes all publish
+      - run: make UPDATE_LATEST=false COVERAGE=false DOCKERHUB_USER=objectrocket WEAVE_VERSION=${CIRCLE_TAG} BUILD_IN_CONTAINER=false PUBLISH_WEAVEDB=false SUDO= exes publish-one-arch
       - persist_to_workspace:
           root: .
           paths:

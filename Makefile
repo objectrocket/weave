@@ -370,7 +370,8 @@ ifneq ($(UPDATE_LATEST),false)
 	$(SUDO) DOCKER_HOST=$(DOCKER_HOST) docker tag  $(DOCKERHUB_USER)/$*-amd64:$(WEAVE_VERSION) $(DOCKERHUB_USER)/$*-amd64:latest
 endif
 # Push the image with the -amd64-suffix so BINARY-ARCH-named images exist for all arches, so manifest lists may be made and ARCH is replaceable in scripts
-	$(MAKE) DOCKER_HOST=$(DOCKER_HOST) DOCKERHUB_USER=$(DOCKERHUB_USER) WEAVE_VERSION=$(WEAVE_VERSION) UPDATE_LATEST=$(UPDATE_LATEST) push_$*-amd64
+# Objectrocket update: don't push this
+	echo $(MAKE) DOCKER_HOST=$(DOCKER_HOST) DOCKERHUB_USER=$(DOCKERHUB_USER) WEAVE_VERSION=$(WEAVE_VERSION) UPDATE_LATEST=$(UPDATE_LATEST) push_$*-amd64
 endif
 
 # This target pushes an image, and if UPDATE_LATEST is anything but false, also updates the latest tag
