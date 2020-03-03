@@ -1,20 +1,27 @@
 version: 2
+defaults: &defaults
+  docker:
+    - image: weaveworks/weavebuild:go-1-13-1-5110a604
+  working_directory: /go/src/github.com/weaveworks/weave
 jobs:
   build_deploy:
-    docker:
-      - image: circleci/golang:1.12
+    <<: *defaults
     steps:
       - checkout
       - setup_remote_docker
+      - run: git submodule update --init
       - run:
           name: docker login
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker info
-      - run:
-          name: docker build and push
-          command: |
-            make UPDATE_LATEST=false DOCKERHUB_USER=objectrocket WEAVE_VERSION=${CIRCLE_TAG} PUBLISH_WEAVEDB=false all publish
+      - run: make UPDATE_LATEST=false COVERAGE=false DOCKERHUB_USER=objectrocket WEAVE_VERSION=${CIRCLE_TAG} BUILD_IN_CONTAINER=false PUBLISH_WEAVEDB=false SUDO= exes all publish
+      - persist_to_workspace:
+          root: .
+          paths:
+          - weave.tar.gz
+          - tools/runner/runner
+          - test/tls/tls
 workflows:
   version: 2
   # runs on version tags
