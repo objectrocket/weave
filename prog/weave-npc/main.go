@@ -327,11 +327,21 @@ func root(cmd *cobra.Command, args []string) {
 	}
 	npController = makeController(client.NetworkingV1().RESTClient(), "networkpolicies", &networkingv1.NetworkPolicy{}, npHandlers)
 
-	go nsController.Run(wait.NeverStop)
-	go podController.Run(wait.NeverStop)
-	go npController.Run(wait.NeverStop)
-
 	signals := make(chan os.Signal, 1)
+
+	go func() {
+		nsController.Run(wait.NeverStop)
+		signals <- syscall.SIGINT
+	}()
+	go func() {
+		podController.Run(wait.NeverStop)
+		signals <- syscall.SIGINT
+	}()
+	go func() {
+		npController.Run(wait.NeverStop)
+		signals <- syscall.SIGINT
+	}()
+
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	common.Log.Fatalf("Exiting: %v", <-signals)
 }
