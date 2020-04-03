@@ -12,7 +12,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -35,6 +34,7 @@ var (
 	bridgePortName    string
 	reconcileInterval string
 	reconcileDuration time.Duration
+	stopChan          chan struct{}
 )
 
 func handleError(err error) { common.CheckFatal(err) }
@@ -269,9 +269,19 @@ func root(cmd *cobra.Command, args []string) {
 	nsController := makeController(client.Core().RESTClient(), "namespaces", &coreapi.Namespace{},
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				handleError(npc.AddNamespace(obj.(*coreapi.Namespace)))
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				switch obj := obj.(type) {
 				case *coreapi.Namespace:
 					handleError(npc.DeleteNamespace(obj))
@@ -283,15 +293,30 @@ func root(cmd *cobra.Command, args []string) {
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				handleError(npc.UpdateNamespace(old.(*coreapi.Namespace), new.(*coreapi.Namespace)))
 			}})
 
 	podController := makeController(client.Core().RESTClient(), "pods", &coreapi.Pod{},
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				handleError(npc.AddPod(obj.(*coreapi.Pod)))
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				switch obj := obj.(type) {
 				case *coreapi.Pod:
 					handleError(npc.DeletePod(obj))
@@ -303,14 +328,29 @@ func root(cmd *cobra.Command, args []string) {
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
+				defer func() {
+					if r := recover(); r != nil {
+						stopChan <- struct{}{}
+					}
+				}()
 				handleError(npc.UpdatePod(old.(*coreapi.Pod), new.(*coreapi.Pod)))
 			}})
 
 	npHandlers := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			defer func() {
+				if r := recover(); r != nil {
+					stopChan <- struct{}{}
+				}
+			}()
 			handleError(npc.AddNetworkPolicy(obj))
 		},
 		DeleteFunc: func(obj interface{}) {
+			defer func() {
+				if r := recover(); r != nil {
+					stopChan <- struct{}{}
+				}
+			}()
 			switch obj := obj.(type) {
 			case cache.DeletedFinalStateUnknown:
 				// We know this object has gone away, but its final state is no longer
@@ -322,24 +362,34 @@ func root(cmd *cobra.Command, args []string) {
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
+			defer func() {
+				if r := recover(); r != nil {
+					stopChan <- struct{}{}
+				}
+			}()
 			handleError(npc.UpdateNetworkPolicy(old, new))
 		},
 	}
 	npController = makeController(client.NetworkingV1().RESTClient(), "networkpolicies", &networkingv1.NetworkPolicy{}, npHandlers)
 
 	signals := make(chan os.Signal, 1)
+	stopChan = make(chan struct{})
 
 	go func() {
-		nsController.Run(wait.NeverStop)
+		nsController.Run(stopChan)
 		signals <- syscall.SIGINT
 	}()
 	go func() {
-		podController.Run(wait.NeverStop)
+		podController.Run(stopChan)
 		signals <- syscall.SIGINT
 	}()
 	go func() {
-		npController.Run(wait.NeverStop)
+		npController.Run(stopChan)
 		signals <- syscall.SIGINT
+	}()
+	go func() {
+		<-stopChan
+		close(stopChan)
 	}()
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
